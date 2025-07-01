@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR YouTube Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #000;
+            overflow: hidden;
+            position: relative;
+            height: 100vh;
+        }
+
+        #camera-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        #camera {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #video-card {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            padding: 20px;
+            max-width: 90vw;
+            max-height: 80vh;
+            display: none;
+        }
+
+        #video-container {
+            position: relative;
+            width: 320px;
+            height: 180px;
+            max-width: 100%;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        #youtube-player {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        #start-button {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 20;
+            background: #ff0000;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        #start-button:hover {
+            background: #cc0000;
+        }
+
+        #close-button {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            background: #666;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        #close-button:hover {
+            background: #333;
+        }
+
+        #error-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 30;
+            background: #ff4444;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            display: none;
+            max-width: 80%;
+        }
+
+        @media (max-width: 480px) {
+            #video-container {
+                width: 280px;
+                height: 157px;
+            }
+            
+            #video-card {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="camera-container">
+        <video id="camera" autoplay muted playsinline></video>
+    </div>
+
+    <button id="start-button">カメラを開始</button>
+
+    <div id="video-card">
+        <button id="close-button">×</button>
+        <div id="video-container">
+            <iframe id="youtube-player" 
+                src="https://www.youtube.com/embed/KsNqqgUsggk?si=6A1rgpkFi6p2o0a8&enablejsapi=1&rel=0&modestbranding=1"
+                allowfullscreen>
+            </iframe>
+        </div>
+    </div>
+
+    <div id="error-message">
+        カメラへのアクセスが拒否されました。<br>
+        ブラウザの設定を確認してください。
+    </div>
+
+    <script>
+        const startButton = document.getElementById('start-button');
+        const videoCard = document.getElementById('video-card');
+        const closeButton = document.getElementById('close-button');
+        const camera = document.getElementById('camera');
+        const errorMessage = document.getElementById('error-message');
+
+        let stream = null;
+
+        // カメラ開始
+        async function startCamera() {
+            try {
+                // カメラへのアクセス要求（背面カメラを優先）
+                const constraints = {
+                    video: {
+                        facingMode: 'environment', // 背面カメラ
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: false
+                };
+
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                camera.srcObject = stream;
+                
+                // カメラが開始されたらボタンを非表示にして動画カードを表示
+                startButton.style.display = 'none';
+                videoCard.style.display = 'block';
+                
+            } catch (error) {
+                console.error('カメラアクセスエラー:', error);
+                showError();
+            }
+        }
+
+        // エラーメッセージ表示
+        function showError() {
+            errorMessage.style.display = 'block';
+            startButton.style.display = 'none';
+        }
+
+        // カメラ停止
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+        }
+
+        // 動画カードを閉じる
+        function closeVideoCard() {
+            videoCard.style.display = 'none';
+            startButton.style.display = 'block';
+            stopCamera();
+        }
+
+        // イベントリスナー
+        startButton.addEventListener('click', startCamera);
+        closeButton.addEventListener('click', closeVideoCard);
+
+        // ページを離れる時にカメラを停止
+        window.addEventListener('beforeunload', stopCamera);
+
+        // 画面回転対応
+        window.addEventListener('orientationchange', function() {
+            setTimeout(() => {
+                // 画面回転後の調整処理
+                if (stream) {
+                    camera.style.height = '100vh';
+                }
+            }, 500);
+        });
+    </script>
+</body>
+</html>
